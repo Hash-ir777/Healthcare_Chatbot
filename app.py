@@ -2,97 +2,67 @@ import streamlit as st
 import pandas as pd
 from langchain_ollama import OllamaLLM
 
-# Streamlit setup
-st.set_page_config(page_title="CSV Chatbot", page_icon="🤖", layout="centered")
-st.title("💬 CSV-Based Chatbot (Llama 3.2 + Ollama)")
+st.set_page_config(page_title="Medical CSV Chatbot", page_icon="🩺", layout="centered")
+st.title("💬 Medical Data Chatbot (Llama 3.2 + Ollama)")
 
-# File uploader
-uploaded_file = st.file_uploader("Upload your CSV file:", type=["csv"])
-use_sample = st.checkbox("Use example dataset (symptom_Description.csv)")
+# --- Preload default datasets ---
+default_files = {
+    "Symptom_severity.csv": None,
+    "symptom_Description.csv": None,
+    "symptom_precaution.csv": None
+}
 
-df = None
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-elif use_sample:
+for file in default_files:
     try:
-        df = pd.read_csv("symptom_Description.csv")
-        st.success("Loaded example dataset.")
+        default_files[file] = pd.read_csv(file)
+        st.success(f"Loaded default dataset: {file}")
     except Exception as e:
-        st.error(f"Could not load example dataset: {e}")
+        st.warning(f"Could not load {file}: {e}")
 
-if df is not None:
-    st.write("### Preview:")
-    st.dataframe(df.head())
-else:
-    st.info("⬆️ Please upload a CSV file or select 'Use example dataset' to begin.")
-    # do not stop the app; allowing the chat input to be visible for convenience
+# --- Handle file uploads too ---
+uploaded_files = st.file_uploader("Upload extra CSV files", type=["csv"], accept_multiple_files=True)
+if uploaded_files:
+    for f in uploaded_files:
+        default_files[f.name] = pd.read_csv(f)
+        st.success(f"Added uploaded dataset: {f.name}")
 
-# Initialize LLM
-llm = None
-try:
-    llm = OllamaLLM(model="llama3.2", temperature=0)
-except Exception as e:
-    st.warning(f"Ollama LLM not available: {e}\nResponses will be simulated locally.")
+# Combine all into one dictionary
+st.session_state.dfs = default_files
 
-# Initialize chat history
+# Display available datasets
+for name, df in st.session_state.dfs.items():
+    if df is not None:
+        with st.expander(f"📄 {name}"):
+            st.dataframe(df.head())
+
+# --- Chat interaction ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Display past messages (if any)
-for message in st.session_state.chat_history:
-    try:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-    except Exception:
-        # fallback rendering
-        st.write(f"{message['role'].title()}: {message['content']}")
-
-# Provide chat input with a fallback for older Streamlit versions
-user_input = None
-try:
-    # Preferred API when available
-    user_input = st.chat_input("Ask me about your data...")
-except Exception:
-    # Fallback to text_input for older Streamlit
-    user_input = st.text_input("Ask me about your data...")
+user_input = st.chat_input("Ask about symptoms, severity, or precautions...")
 
 if user_input:
-    # render user's message
-    try:
-        st.chat_message("user").markdown(user_input)
-    except Exception:
-        st.write(f"User: {user_input}")
+    st.chat_message("user").markdown(user_input)
     st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-    # Combine context from the dataframe
-    context = df.head(50).to_string(index=False)  # show first 50 rows as context
-    prompt = f"""You are a data assistant. Use the table data below to answer user queries.
+    context = "\n\n".join(
+        [df.head(50).to_string(index=False) for df in st.session_state.dfs.values() if df is not None]
+    )
+
+    prompt = f"""
+You are a helpful medical assistant.
+Use the data below to answer questions accurately.
+
+
 Data:
 {context}
 
-User question: {user_input}
-Answer based only on the data above when possible.
+Question: {user_input}
 """
 
-    with st.spinner("Thinking..."):
-        response = None
-        if llm is not None:
-            try:
-                # Some wrappers return a dict or object; normalize to string
-                raw = llm.invoke(prompt)
-                if isinstance(raw, (dict,)) and "content" in raw:
-                    response = raw["content"]
-                else:
-                    response = str(raw)
-            except Exception as e:
-                response = f"LLM call failed: {e}"
-        else:
-            # Simple local heuristic: echo and summarize
-            response = "I don't have an LLM available. Based on the provided data, please check the CSV; I can answer simple questions about column names or row counts."
+    llm = OllamaLLM(model="llama3.2", temperature=0)
+    response = llm.invoke(prompt)
+    response_text = str(response) if not isinstance(response, dict) else response.get("content", str(response))
 
-    st.session_state.chat_history.append({"role": "assistant", "content": response})
-    try:
-        with st.chat_message("assistant"):
-            st.markdown(response)
-    except Exception:
-        st.write(f"Assistant: {response}")
+    st.chat_message("assistant").markdown(response_text)
+    st.session_state.chat_history.append({"role": "assistant", "content": response_text})
