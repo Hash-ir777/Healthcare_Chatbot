@@ -90,6 +90,7 @@ To contribute:
 4. Push and open a pull request.
 
 ## Contact
-If you have questions or want help improving the README or app, open an issue or contact the repository owner: @Yusufali2004 @Hash-ir777.
+If you have questions or want help improving the README or app, open an issue or contact the repository owners:
 
----
+- [@Yusufali2004](https://github.com/Yusufali2004)
+- [@Hash-ir777](https://github.com/Hash-ir777)

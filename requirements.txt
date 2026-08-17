@@ -9,5 +9,3 @@ tabulate
 streamlit
 numpy
 scikit-learn
-
--e .
