@@ -7,9 +7,11 @@ st.title("💬 Medical Data Chatbot (Llama 3.2 + Ollama)")
 
 # --- Preload default datasets ---
 default_files = {
-    "Symptom_severity.csv": None,
-    "symptom_Description.csv": None,
-    "symptom_precaution.csv": None
+    
+    #"Symptom_severity.csv": None,
+    #"symptom_Description.csv": None,
+    #"symptom_precaution.csv": None,
+    "Diseases_Symptoms.csv":None,
 }
 
 for file in default_files:
@@ -52,6 +54,7 @@ if user_input:
     prompt = f"""
 You are a helpful medical assistant.
 Use the data below to answer questions accurately.
+give answer in the form of points.
 
 
 Data:
